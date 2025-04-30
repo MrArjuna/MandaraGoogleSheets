@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Pendientes</title>
+  <style>
+    :root {
+      --color-primary: #3498db;
+      --color-success: #2ecc71;
+      --color-error: #e74c3c;
+    }
+    body {
+      font-family: 'Arial', sans-serif;
+      line-height: 1.6;
+      padding: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+    .empresa {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+      overflow: hidden;
+    }
+    .empresa-header {
+      background: var(--color-primary);
+      color: white;
+      padding: 15px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .categoria {
+      padding: 15px;
+      border-bottom: 1px solid #eee;
+    }
+    .tarea {
+      margin: 10px 0;
+      padding: 8px;
+      display: flex;
+      align-items: center;
+    }
+    .tarea input {
+      margin-right: 10px;
+    }
+    #status {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 15px;
+      border-radius: 5px;
+      color: white;
+      display: none;
+      max-width: 300px;
+    }
+    .success { background: var(--color-success); }
+    .error { background: var(--color-error); }
+  </style>
+</head>
+<body>
+
+  <h1>Control de Pendientes</h1>
+  <div id="empresas"></div>
+  <div id="status"></div>
+
+  <script>
+    // Configuración
+    const CONFIG = {
+      scriptUrl: 'https://script.google.com/macros/s/AKfycbwz35vUShpFPB8gZ9-47JbgLZY5lLcSCxO8tiolI33thH8bIgMs4RLvQ1aRMapcnorg/exec',
+      empresas: [
+        "Tatuus 5", "Tatuus 4", "Tatuus 3", "Tatuus 2", "Tatuus Archivo",
+        "EALegal", "RRB", "Floyd", "Royal Assets", "Mallory", "Quatro", "Zeitten", "Kepler"
+      ],
+      categorias: {
+        "Servidor": ["Realizar actualizaciones", "Reiniciar", "Reinicio Automatico Habilitado"],
+        "RDSG": ["Se actualizaron certificados"],
+        "TS PLUS": ["Se realizo actualización"],
+        "Contpaqi": ["Se reviso la licencia"]
+      },
+      categoriasEmpresa: {
+        "Tatuus 3": ["TS PLUS"],
+        "Zeitten": ["TS PLUS"],
+        "Tatuus 5": ["Contpaqi"],
+        "EALegal": ["Contpaqi"],
+        "RRB": ["Contpaqi"]
+      }
+    };
+
+    // Generar interfaz
+    function generarInterfaz() {
+      const contenedor = document.getElementById('empresas');
+      
+      CONFIG.empresas.forEach(empresa => {
+        const empresaDiv = document.createElement('div');
+        empresaDiv.className = 'empresa';
+        
+        const header = document.createElement('div');
+        header.className = 'empresa-header';
+        header.textContent = empresa;
+        empresaDiv.appendChild(header);
+        
+        const content = document.createElement('div');
+        
+        // Categorías base
+        Object.entries(CONFIG.categorias).forEach(([categoria, tareas]) => {
+          if (categoria === "TS PLUS" || categoria === "Contpaqi") return;
+          
+          const categoriaDiv = document.createElement('div');
+          categoriaDiv.className = 'categoria';
+          
+          const titulo = document.createElement('h3');
+          titulo.textContent = categoria;
+          categoriaDiv.appendChild(titulo);
+          
+          tareas.forEach(tarea => {
+            crearCheckbox(categoriaDiv, empresa, `${categoria}: ${tarea}`);
+          });
+          
+          content.appendChild(categoriaDiv);
+        });
+        
+        // Categorías adicionales
+        if (CONFIG.categoriasEmpresa[empresa]) {
+          CONFIG.categoriasEmpresa[empresa].forEach(categoria => {
+            const categoriaDiv = document.createElement('div');
+            categoriaDiv.className = 'categoria';
+            
+            const titulo = document.createElement('h3');
+            titulo.textContent = categoria;
+            categoriaDiv.appendChild(titulo);
+            
+            CONFIG.categorias[categoria].forEach(tarea => {
+              crearCheckbox(categoriaDiv, empresa, `${categoria}: ${tarea}`);
+            });
+            
+            content.appendChild(categoriaDiv);
+          });
+        }
+        
+        empresaDiv.appendChild(content);
+        contenedor.appendChild(empresaDiv);
+        
+        // Acordeón
+        header.addEventListener('click', () => {
+          content.style.display = content.style.display === 'none' ? 'block' : 'none';
+        });
+        content.style.display = 'none';
+      });
+    }
+
+    function crearCheckbox(contenedor, empresa, tarea) {
+      const id = `chk-${empresa}-${tarea}`.replace(/\s+/g, '-');
+      
+      const label = document.createElement('label');
+      label.className = 'tarea';
+      
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.id = id;
+      checkbox.dataset.empresa = empresa;
+      checkbox.dataset.tarea = tarea;
+      
+      // Estado persistente
+      checkbox.checked = localStorage.getItem(id) === 'true';
+      checkbox.addEventListener('change', () => {
+        localStorage.setItem(id, checkbox.checked);
+        enviarDatos(empresa, tarea, checkbox.checked);
+      });
+      
+      label.appendChild(checkbox);
+      label.appendChild(document.createTextNode(tarea));
+      contenedor.appendChild(label);
+    }
+
+    // Enviar datos via JSONP
+    function enviarDatos(empresa, tarea, estado) {
+      const callbackName = `jsonp_${Date.now()}`;
+      const url = `${CONFIG.scriptUrl}?empresa=${encodeURIComponent(empresa)}&tarea=${encodeURIComponent(tarea)}&estado=${estado ? '1' : '0'}&callback=${callbackName}`;
+      
+      window[callbackName] = function(response) {
+        mostrarEstado(response);
+        delete window[callbackName];
+      };
+      
+      const script = document.createElement('script');
+      script.src = url;
+      script.onerror = () => {
+        mostrarEstado({ status: 'error', message: 'Error de conexión' });
+        delete window[callbackName];
+      };
+      
+      document.body.appendChild(script);
+      setTimeout(() => script.remove(), 1000);
+      mostrarEstado({ status: 'loading', message: 'Guardando...' });
+    }
+
+    // Mostrar estado
+    function mostrarEstado(res) {
+      const statusDiv = document.getElementById('status');
+      
+      if (res.status === 'success') {
+        statusDiv.textContent = `✅ ${res.data.empresa}: ${res.data.tarea} guardado`;
+        statusDiv.className = 'success';
+      } else if (res.status === 'error') {
+        statusDiv.textContent = `❌ ${res.message || 'Error desconocido'}`;
+        statusDiv.className = 'error';
+      } else {
+        statusDiv.textContent = res.message;
+        statusDiv.className = 'loading';
+      }
+      
+      statusDiv.style.display = 'block';
+      if (res.status !== 'loading') {
+        setTimeout(() => statusDiv.style.display = 'none', 5000);
+      }
+    }
+
+    // Inicializar
+    document.addEventListener('DOMContentLoaded', generarInterfaz);
+    
+    // Funciones globales para JSONP
+    window.handleResponse = mostrarEstado;
+    window.handleError = (err) => mostrarEstado({
+      status: 'error',
+      message: err.message || 'Error en el servidor'
+    });
+  </script>
+</body>
+</html>

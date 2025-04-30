@@ -1,0 +1,132 @@
+RESUMEN COMPLETO PARA CREAR UNA APP .EXE CON ELECTRON
+
+
+Paso 1
+
+Inicializar tu proyecto con el comando 
+
+npm init -y
+
+(Esto genera el archivo package.json)
+
+
+Paso 2
+
+Instalar Electron
+
+npm install electron --save-dev
+
+(Esto crea la carpeta con todo lo necesario relativo a electron,
+
+Instala componentes y archivos necesarios para generar el .exe)
+
+Paso 3.
+
+Crear estructura de archivos
+En la carpeta de tu proyecto, crea:
+
+/App
+ ├── main.js         ← Script principal de Electron
+ ├── index.html      ← Interfaz de tu aplicación
+ ├── renderer.js     ← Lógica de la interfaz (opcional)
+ └── icon.ico        ← Icono para el ejecutable (opcional)
+
+
+HTML es lo que leera y abrirá el .exe
+
+y el Main es la union del HTML y Electron.
+
+
+Paso 4
+
+
+Edita el archivo package.json
+
+
+"main": "main.js",
+"scripts": {
+  "start": "electron .",
+  "package": "electron-packager . MiApp --platform=win32 --arch=x64 --icon=icon.ico --overwrite"
+}
+
+Cambia MiApp por el nombre que desees para tu app.
+
+
+Paso 5 
+
+Crear Archivo Main
+
+Codigo.
+
+const { app, BrowserWindow } = require('electron');
+const path = require('path');
+
+function createWindow() {
+  const win = new BrowserWindow({
+    width: 800,
+    height: 600,
+    icon: path.join(__dirname, 'icon.ico'),
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false
+    }
+  });
+
+  win.loadFile('index.html');
+}
+
+app.whenReady().then(() => {
+  createWindow();
+
+  app.on('activate', function () {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
+
+app.on('window-all-closed', function () {
+  if (process.platform !== 'darwin') app.quit();
+});
+
+
+¿Qué hace este archivo?
+createWindow: Crea una ventana con tu archivo index.html.
+
+app.whenReady(): Espera a que Electron esté listo para iniciar.
+
+app.on('window-all-closed'): Cierra la app cuando se cierran todas las ventanas.
+
+
+
+Paso 6
+
+Probar la APP (Aun no creamos el .Exe)
+
+(Desde la terminal, en la ruta donde se encuentra tu proyecto)
+npm start
+
+
+
+
+Paso 7.
+
+Empaquetar tu app.
+
+npm run package
+
+
+(Esto creará una carpeta MiApp-win32-x64 con tu .exe adentro.)
+
+
+
+Paso 8.
+
+Crear acceso directo (opcional)
+
+Ve a la carpeta MiApp-win32-x64
+
+Clic derecho sobre el .exe
+
+Selecciona "Enviar a > Escritorio (crear acceso directo)"
+
+
+
